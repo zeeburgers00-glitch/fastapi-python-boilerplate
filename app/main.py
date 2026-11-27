@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI,HTTPException,BackgroundTasks,UploadFile,File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.openapi.utils import get_openapi
 from .config import get_settings
 from .db import init_db,create_project,create_job,get_project,list_projects,get_job,update_job,save_result,update_project_status
 from .schemas import (ProjectCreate,RenderRequest,VoiceRequest,MediaSearchRequest,
@@ -23,6 +24,24 @@ s=get_settings()
 app=FastAPI(title=s.app_name,version="0.4.0",description="Modular AI YouTube production backend.")
 app.add_middleware(CORSMiddleware,allow_origins=s.allowed_origins,allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
 app.middleware("http")(api_key_guard)
+
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    schema = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes)
+    schemes = schema.setdefault("components", {}).setdefault("securitySchemes", {})
+    schemes["ApiKeyAuth"] = {"type": "apiKey", "in": "header", "name": "X-API-Key"}
+    for path, methods in schema.get("paths", {}).items():
+        if path.startswith("/api/"):
+            for operation in methods.values():
+                if isinstance(operation, dict):
+                    operation["security"] = [{"ApiKeyAuth": []}]
+    app.openapi_schema = schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 @app.on_event("startup")
 def startup():
