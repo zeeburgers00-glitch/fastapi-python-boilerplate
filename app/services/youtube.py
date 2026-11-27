@@ -1,8 +1,8 @@
 import re,httpx
 from ..config import get_settings
-VIDEO_RE=re.compile(r"(?:youtu\\.be/|youtube\\.com/(?:watch\\?v=|shorts/|embed/))([A-Za-z0-9_-]{11})")
+VIDEO_RE=re.compile(r"(?:youtu\.be/|youtube\.com/(?:watch\?v=|shorts/|embed/))([A-Za-z0-9_-]{11})")
 CHANNEL_RE=re.compile(r"(UC[A-Za-z0-9_-]{20,})")
-HANDLE_RE=re.compile(r"youtube\\.com/@([^/?]+)")
+HANDLE_RE=re.compile(r"youtube\.com/@([^/?]+)")
 def video_id(url):
  m=VIDEO_RE.search(url);return m.group(1) if m else None
 async def analyze(url):
