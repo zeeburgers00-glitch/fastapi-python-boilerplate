@@ -7,10 +7,10 @@ Local-first FastAPI backend for creating original YouTube Shorts and long-form v
 - Multi-provider LLM router: Groq, Gemini, OpenRouter and local Ollama.
 - Research, script, storyboard, SEO and quality-review agents.
 - Pexels stock-video search **and download** endpoints with source/photographer metadata.
-- FFmpeg multi-clip editor: 1080p/vertical output, narration, background music mixing, and optional SRT caption burn-in.
+- FFmpeg multi-clip editor: 1080p/vertical output, crossfade transitions, subtle visual finishing, narration, background music mixing, and optional SRT caption burn-in.
 - Multilingual Edge neural TTS adapter and offline Piper adapter.
 - Optional SadTalker talking-avatar adapter for a user-provided portrait and generated narration.
-- Pillow thumbnail generation and downloadable output files.
+- Automatic Pillow thumbnail generation and downloadable MP4/SEO/thumbnail output files.
 - SQLite project/job tracking, Docker and GitHub Actions tests.
 
 ## Important quality and cost notes
