@@ -151,3 +151,9 @@ def test_job_progress_is_persisted(tmp_path):
         assert job["stage"] == "script"
     finally:
         settings.database_path = previous_path
+
+
+def test_openapi_documents_api_key_security():
+    schema = TestClient(app).get("/openapi.json").json()
+    assert "ApiKeyAuth" in schema["components"]["securitySchemes"]
+    assert schema["paths"]["/api/v1/skills"]["get"]["security"] == [{"ApiKeyAuth": []}]
