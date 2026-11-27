@@ -59,3 +59,35 @@ def test_srt_caption_generation(tmp_path, monkeypatch):
     assert "00:00:00,000 -->" in content
     assert "First sentence." in content
     assert "Second sentence." in content
+
+def test_auto_pipeline_selects_language_voice_without_unbound_engine(monkeypatch):
+    import asyncio
+    import app.agents.pipeline as pipeline
+
+    class Settings:
+        pexels_api_key = ""
+
+    async def fake_to_thread(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(pipeline, "get_settings", lambda: Settings())
+    monkeypatch.setattr(pipeline.asyncio, "to_thread", fake_to_thread)
+    monkeypatch.setattr(pipeline, "select_edge_voice", lambda language, preferred: "ur-PK-UzmaNeural")
+    monkeypatch.setattr(
+        pipeline, "synthesize_edge",
+        lambda text, filename, voice: {"audio_path": "outputs/voice.mp3", "filename": filename, "voice": voice},
+    )
+    monkeypatch.setattr(
+        pipeline, "create_thumbnail",
+        lambda title, background, filename: {"thumbnail_path": "outputs/" + filename},
+    )
+
+    result = asyncio.run(
+        pipeline._auto_produce(
+            {"id": "test-project", "topic": "Test topic"},
+            {"language": "Urdu", "voice_engine": "edge", "voice_name": "auto"},
+            "This is narration.",
+        )
+    )
+    assert result["voiceover"]["voice"] == "ur-PK-UzmaNeural"
+    assert result["status"] == "partial"
