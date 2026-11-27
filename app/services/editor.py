@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 from ..config import get_settings
-from .asset_paths import safe_upload_path
+from .asset_paths import safe_media_path
 
 
 def _output_path(filename: str) -> Path:
@@ -40,10 +40,10 @@ def render_video(clips: list[str], narration: str | None = None,
         raise ValueError("Provide between 1 and 80 video clips.")
     if width % 2 or height % 2:
         raise ValueError("Video width and height must be even numbers.")
-    inputs = [safe_upload_path(p) for p in clips]
-    narration_path = safe_upload_path(narration) if narration else None
-    music_path = safe_upload_path(music) if music else None
-    subtitle_path = safe_upload_path(subtitles) if subtitles else None
+    inputs = [safe_media_path(p) for p in clips]
+    narration_path = safe_media_path(narration) if narration else None
+    music_path = safe_media_path(music) if music else None
+    subtitle_path = safe_media_path(subtitles) if subtitles else None
     duration = _duration_seconds(narration_path) if narration_path else None
     out = _output_path(output_name)
 
