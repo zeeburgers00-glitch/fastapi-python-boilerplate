@@ -5,7 +5,7 @@ from fastapi import FastAPI,HTTPException,BackgroundTasks,UploadFile,File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from .config import get_settings
-from .db import init_db,create_project,create_job,get_project,list_projects,get_job,update_job,save_result
+from .db import init_db,create_project,create_job,get_project,list_projects,get_job,update_job,save_result,update_project_status
 from .schemas import (ProjectCreate,RenderRequest,VoiceRequest,MediaSearchRequest,
                       ThumbnailRequest,StockDownloadRequest,VideoEditRequest,AvatarRequest)
 from .agents.pipeline import run_production
@@ -16,10 +16,13 @@ from .services.thumbnail import create_thumbnail
 from .services.editor import render_video
 from .services.avatar import render_talking_avatar
 from .services.ollama import provider_status
+from .security import api_key_guard
+from .skills.registry import list_skills
 
 s=get_settings()
-app=FastAPI(title=s.app_name,version="0.3.0",description="Local-first AI YouTube production backend.")
+app=FastAPI(title=s.app_name,version="0.4.0",description="Modular AI YouTube production backend.")
 app.add_middleware(CORSMiddleware,allow_origins=s.allowed_origins,allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
+app.middleware("http")(api_key_guard)
 
 @app.on_event("startup")
 def startup():
@@ -34,6 +37,17 @@ def root():
 @app.get("/health")
 def health():
     return {"status":"ok","app":s.app_name,"environment":s.app_env}
+
+@app.get("/ready")
+def ready():
+    """Liveness plus local dependency visibility; external providers are not pinged."""
+    import shutil
+    return {
+        "status": "ready",
+        "database": "sqlite_configured",
+        "ffmpeg": bool(shutil.which(s.ffmpeg_binary)),
+        "llm": provider_status(),
+    }
 
 @app.get("/api/v1/capabilities")
 def capabilities():
@@ -54,13 +68,34 @@ def capabilities():
 
 async def process_project(pid,jid,opts):
     try:
-        update_job(jid,"running","research_and_script")
+        update_project_status(pid, "running")
+
+        async def report_progress(stage, percent, message):
+            update_job(jid, "running", stage, progress=percent, message=message)
+
+        update_job(jid, "running", "research", progress=2, message="Starting production workflow")
         project=get_project(pid)
-        result=await run_production(project,opts)
+        result=await run_production(project,opts,progress_callback=report_progress)
         save_result(pid,result)
-        update_job(jid,"completed",result.get("status","completed"))
+        update_job(jid,"completed",result.get("status","completed"),progress=100,
+                   message="Production workflow finished; review the generated assets")
     except Exception as exc:
-        update_job(jid,"failed","error",str(exc)[:1000])
+        update_project_status(pid, "failed")
+        update_job(jid,"failed","error",str(exc)[:1000],progress=100,
+                   message="Production failed; inspect the error and retry after fixing the cause")
+
+
+@app.get("/api/v1/skills")
+def skills():
+    items = list_skills()
+    return {"count": len(items), "items": items}
+
+
+@app.get("/api/v1/agents")
+def agents():
+    items = [item for item in list_skills() if item["category"] == "agent"]
+    return {"count": len(items), "items": items}
+
 
 @app.post("/api/v1/projects",status_code=202)
 async def new_project(body:ProjectCreate,bg:BackgroundTasks):
