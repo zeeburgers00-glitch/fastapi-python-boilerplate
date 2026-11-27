@@ -11,6 +11,12 @@ class ProjectCreate(BaseModel):
  language:str=Field(default="English",min_length=2,max_length=40)
  audience:str=Field(default="general audience",max_length=160)
  tone:str=Field(default="engaging, clear, factual",max_length=160)
+ generate_video:bool=True
+ voice_engine:Literal["edge","piper"]="edge"
+ voice_name:str=Field(default="en-US-AriaNeural",max_length=100)
+ stock_query:str|None=Field(default=None,max_length=120)
+ background_music_path:str|None=None
+ avatar_image_path:str|None=None
 
 class RenderRequest(BaseModel):
  image_paths:list[str]=Field(min_length=1,max_length=100)
