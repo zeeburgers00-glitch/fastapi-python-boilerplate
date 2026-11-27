@@ -92,3 +92,62 @@ def test_auto_pipeline_selects_language_voice_without_unbound_engine(monkeypatch
     )
     assert result["voiceover"]["voice"] == "ur-PK-UzmaNeural"
     assert result["status"] == "partial"
+
+
+def test_skill_catalogue_reports_real_configuration_state():
+    from app.skills.registry import list_skills
+
+    items = list_skills()
+    ids = {item["id"] for item in items}
+    assert {"research-agent", "script-agent", "ffmpeg-video-editor", "sadtalker-avatar"} <= ids
+    assert all("state" in item and "requirements" in item for item in items)
+
+
+def test_skills_endpoint():
+    response = TestClient(app).get("/api/v1/skills")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] >= 10
+    assert any(item["id"] == "seo-agent" for item in data["items"])
+
+
+def test_production_api_fails_closed_and_accepts_valid_key():
+    import app.main as main
+
+    previous_env, previous_key = main.s.app_env, main.s.api_key
+    try:
+        main.s.app_env = "production"
+        main.s.api_key = ""
+        client = TestClient(app)
+        assert client.get("/health").status_code == 200
+        assert client.get("/api/v1/skills").status_code == 503
+
+        main.s.api_key = "test-secret"
+        assert client.get("/api/v1/skills").status_code == 401
+        authorized = client.get("/api/v1/skills", headers={"X-API-Key": "test-secret"})
+        assert authorized.status_code == 200
+    finally:
+        main.s.app_env, main.s.api_key = previous_env, previous_key
+
+
+def test_job_progress_is_persisted(tmp_path):
+    from app.config import get_settings
+    from app.db import init_db, create_project, create_job, update_job, get_job
+
+    settings = get_settings()
+    previous_path = settings.database_path
+    try:
+        settings.database_path = str(tmp_path / "progress.db")
+        init_db()
+        create_project({
+            "id": "p-progress", "title": "Progress test", "topic": "Progress testing",
+            "mode": "topic", "competitor_url": None,
+        })
+        create_job("j-progress", "p-progress")
+        update_job("j-progress", "running", "script", progress=42, message="Writing script")
+        job = get_job("j-progress")
+        assert job["progress"] == 42
+        assert job["message"] == "Writing script"
+        assert job["stage"] == "script"
+    finally:
+        settings.database_path = previous_path
