@@ -54,10 +54,21 @@ async def upload_asset(file:UploadFile=File(...)):
  allowed={".png",".jpg",".jpeg",".webp",".wav",".mp3",".m4a",".mp4",".mov"}
  ext=Path(file.filename or "").suffix.lower()
  if ext not in allowed:raise HTTPException(400,"Supported formats: images, WAV/MP3/M4A audio, MP4/MOV video.")
- data=await file.read(s.max_upload_mb*1024*1024+1)
- if len(data)>s.max_upload_mb*1024*1024:raise HTTPException(413,"Upload exceeds MAX_UPLOAD_MB.")
- name=uuid.uuid4().hex+ext;target=Path("uploads")/name;target.parent.mkdir(exist_ok=True);target.write_bytes(data)
- return {"asset_path":str(target),"filename":name,"bytes":len(data),"content_type":file.content_type}
+ name=uuid.uuid4().hex+ext;target=Path("uploads")/name;target.parent.mkdir(exist_ok=True)
+ total=0;limit=s.max_upload_mb*1024*1024
+ try:
+  with target.open("wb") as out:
+   while True:
+    chunk=await file.read(1024*1024)
+    if not chunk:break
+    total+=len(chunk)
+    if total>limit:raise HTTPException(413,"Upload exceeds MAX_UPLOAD_MB.")
+    out.write(chunk)
+ except Exception:
+  target.unlink(missing_ok=True);raise
+ finally:
+  await file.close()
+ return {"asset_path":str(target),"filename":name,"bytes":total,"content_type":file.content_type}
 @app.post("/api/v1/voice/synthesize")
 def voice(body:VoiceRequest):
  try:return synthesize_piper(body.text,body.filename)
