@@ -31,7 +31,7 @@ def _duration_seconds(path: Path) -> float | None:
 def render_video(clips: list[str], narration: str | None = None,
                  music: str | None = None, subtitles: str | None = None,
                  output_name: str = "final_video.mp4", width: int = 1920,
-                 height: int = 1080, fps: int = 30, music_volume: float = 0.12):
+                 height: int = 1080, fps: int = 30, music_volume: float = 0.12, avatar_overlay: str | None = None):
     """Assemble footage to narration length, mixing audio and burning optional SRT captions."""
     ffmpeg = shutil.which(get_settings().ffmpeg_binary)
     if not ffmpeg:
@@ -43,6 +43,7 @@ def render_video(clips: list[str], narration: str | None = None,
     inputs = [safe_media_path(p) for p in clips]
     narration_path = safe_media_path(narration) if narration else None
     music_path = safe_media_path(music) if music else None
+    avatar_path = safe_media_path(avatar_overlay) if avatar_overlay else None
     subtitle_path = safe_media_path(subtitles) if subtitles else None
     duration = _duration_seconds(narration_path) if narration_path else None
     out = _output_path(output_name)
@@ -64,8 +65,16 @@ def render_video(clips: list[str], narration: str | None = None,
     if music_path:
         cmd += ["-stream_loop", "-1", "-i", str(music_path)]
         music_index = audio_index
+        audio_index += 1
     else:
         music_index = None
+    if avatar_path:
+        if duration:
+            cmd += ["-stream_loop", "-1", "-t", f"{duration:.3f}"]
+        cmd += ["-i", str(avatar_path)]
+        avatar_index = audio_index
+    else:
+        avatar_index = None
 
     filters = []
     labels = []
@@ -104,12 +113,19 @@ def render_video(clips: list[str], narration: str | None = None,
     elif music_index is not None:
         filters.append(f"[{music_index}:a]volume={music_volume},aresample=async=1[outa]")
 
+    video_label = "[outv]"
+    if avatar_index is not None:
+        filters.append(
+            f"[{avatar_index}:v]scale={int(width * 0.28)}:-1,format=rgba[avatarpip];"
+            f"[outv][avatarpip]overlay=x=W-w-48:y=H-h-48:eof_action=pass:shortest=0[withavatar]"
+        )
+        video_label = "[withavatar]"
     if subtitle_path:
         srt = str(subtitle_path).replace("\\", "/").replace(":", "\\:")
-        filters.append(f"[outv]subtitles='{srt}':force_style='FontName=Arial,FontSize=22,Outline=2,Shadow=1,Alignment=2'[captioned]")
+        filters.append(f"{video_label}subtitles='{srt}':force_style='FontName=Arial,FontSize=22,Outline=2,Shadow=1,Alignment=2'[captioned]")
         video_map = "[captioned]"
     else:
-        video_map = "[outv]"
+        video_map = video_label
     cmd += ["-filter_complex", ";".join(filters), "-map", video_map]
     if narration_index is not None or music_index is not None:
         cmd += ["-map", "[outa]", "-shortest"]
@@ -121,5 +137,5 @@ def render_video(clips: list[str], narration: str | None = None,
     return {"output_path": str(out), "filename": out.name, "bytes": out.stat().st_size,
             "width": width, "height": height, "fps": fps, "format": "mp4",
             "clips_used": len(inputs), "subtitles_burned": bool(subtitle_path),
-            "narration_mixed": bool(narration_path), "music_mixed": bool(music_path),
+            "narration_mixed": bool(narration_path), "music_mixed": bool(music_path), "avatar_overlay": bool(avatar_path),
             "target_duration_seconds": duration}
