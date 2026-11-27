@@ -1,64 +1,60 @@
-# YouTube AI Factory — Backend foundation
+# YouTube AI Factory — Backend
 
-Local-first FastAPI backend for an original YouTube production workflow.
+Local-first FastAPI backend for creating original YouTube Shorts and long-form videos, with downloadable video and SEO assets. It does not publish to YouTube.
 
-## Included modules
-- FastAPI project/job API with SQLite persistence.
-- Topic-to-production-package and competitor-link modes.
-- Specialist agents: research planner, script writer, storyboard director, SEO editor, quality reviewer.
-- Multi-provider LLM router: Groq, Gemini, OpenRouter and local Ollama, with automatic fallback across configured providers.
-- Official YouTube Data API competitor metadata lookup, including channel handles and a sample of recent uploads ranked by public views (optional).
-- Piper local text-to-speech adapter (optional).
-- Pexels stock-video search adapter (optional API key; respect each asset's license and terms).
-- Pillow thumbnail generator.
-- FFmpeg slideshow renderer with narration audio.
-- Upload endpoint with size and file-extension limits; render/thumbnail inputs are restricted to the uploads directory.
-- Dockerfile, Docker Compose, CI test workflow and starter tests.
+## Current modules
+- Topic and competitor-channel research using official public YouTube metadata.
+- Multi-provider LLM router: Groq, Gemini, OpenRouter and local Ollama.
+- Research, script, storyboard, SEO and quality-review agents.
+- Pexels stock-video search **and download** endpoints with source/photographer metadata.
+- FFmpeg multi-clip editor: 1080p/vertical output, narration, background music mixing, and optional SRT caption burn-in.
+- Multilingual Edge neural TTS adapter and offline Piper adapter.
+- Optional SadTalker talking-avatar adapter for a user-provided portrait and generated narration.
+- Pillow thumbnail generation and downloadable output files.
+- SQLite project/job tracking, Docker and GitHub Actions tests.
 
-This is an early working backend foundation, not yet the complete one-click studio. Durable distributed queues, authentication, full timeline editing, caption burn-in, auto B-roll matching, advanced thumbnail layouts, channel OAuth/upload scheduling and production hardening are still required.
+## Important quality and cost notes
+- Cloud LLM/TTS/stock services have changing quotas, terms and availability. No free API is guaranteed unlimited.
+- Edge TTS is an online voice adapter, not a contractual unlimited voice service. Piper is local/offline but quality and language coverage depend on the selected voice model.
+- SadTalker is an optional local adapter. Install its repository, dependencies and model checkpoints separately; model weights are not included. Talking-avatar generation is compute-heavy and will be slow or may not run well on an older CPU-only computer.
+- Pexels clips must be checked against the current Pexels license and any applicable asset restrictions before publication. Downloaded stock media is stored locally.
+- The FFmpeg editor is a practical multi-clip assembly pipeline, not a full professional nonlinear editor with keyframed motion graphics or a Premiere-style timeline.
+- AI-generated facts, captions, voice, avatar and SEO must be reviewed by a human.
 
-## Run locally
+## Setup
+Python 3.11+, FFmpeg and a local working directory are required.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\\Scripts\\activate
 # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-# Copy .env.example to .env and edit optional settings
+cp .env.example .env
 uvicorn app.main:app --reload
 ```
+
 Open http://127.0.0.1:8000/docs
 
-## Optional AI services
-- Ollama: install locally and run `ollama pull qwen2.5:3b`; configure `OLLAMA_BASE_URL` and `OLLAMA_MODEL`.
-- Piper: install Piper, download a compatible voice model, set `PIPER_BINARY` and `PIPER_MODEL_PATH`.
-- YouTube competitor metadata: set `YOUTUBE_DATA_API_KEY` from Google Cloud.
-- Stock video search: set `PEXELS_API_KEY`.
+## Optional providers
+Configure in `.env`:
+- `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY` for cloud text models; or install Ollama and pull `qwen2.5:3b`.
+- `PEXELS_API_KEY` for stock video search and download.
+- `PIPER_BINARY` and `PIPER_MODEL_PATH` for offline TTS.
+- SadTalker checkout path in `SADTALKER_PATH`; set `AVATAR_PYTHON` to its compatible Python interpreter. Install the official SadTalker dependencies and checkpoints separately.
+- FFmpeg must be available on PATH (or configure `FFMPEG_BINARY`).
 
-No API key is required for the basic local API, SQLite storage, Pillow thumbnails, or FFmpeg rendering. Optional provider accounts/quotas may apply.
+## API workflow
+1. `POST /api/v1/projects` creates a research/script/SEO production package.
+2. Poll `GET /api/v1/jobs/{job_id}`; inspect `GET /api/v1/projects/{project_id}`.
+3. `POST /api/v1/media/search` searches stock clips; `POST /api/v1/media/download` downloads a selected Pexels clip into `uploads/`.
+4. Upload narration/music/SRT or portrait/audio through `POST /api/v1/assets/upload`.
+5. `POST /api/v1/voice/synthesize` creates voiceover; `GET /api/v1/voice/voices` lists Edge voice names/locales.
+6. `POST /api/v1/render/video` assembles clips, voice, music and optional SRT captions.
+7. `POST /api/v1/avatar/talking` invokes configured SadTalker for a portrait/audio pair.
+8. `GET /api/v1/outputs/{filename}` downloads generated assets.
 
-## Docker
-Copy `.env.example` to `.env`, then:
-```bash
-docker compose up --build
-```
-For Ollama, pull a model inside the Ollama container after it starts:
-```bash
-docker compose exec ollama ollama pull qwen2.5:3b
-```
+## Download-only scope
+The product scope is video and SEO download only. There is no YouTube OAuth upload, channel publishing or scheduling. The asset upload endpoint only supplies local source assets to the renderer; it does not publish anything.
 
-## API flow
-1. `POST /api/v1/projects` with a topic or competitor URL.
-2. Poll `GET /api/v1/jobs/{job_id}`.
-3. Read the result at `GET /api/v1/projects/{project_id}`.
-4. Upload images/audio using `POST /api/v1/assets/upload`.
-5. Optional: `POST /api/v1/voice/synthesize`, `POST /api/v1/media/search`, `POST /api/v1/thumbnails/generate`.
-6. Render supplied images/audio using `POST /api/v1/render/slideshow`.
-7. Retrieve generated files via `GET /api/v1/outputs/{filename}`.
-
-## Product scope\nThe intended user flow is video generation plus SEO metadata and downloadable output files. There is no YouTube channel publishing, OAuth upload, or scheduling integration. The existing `/api/v1/assets/upload` route is only for supplying source media to the renderer; it does not publish to YouTube.\n\n## Important limitations and safety
-- FastAPI in-process background tasks are for local development only. Replace with Celery + Redis and durable retries before multi-user production.
-- Competitor analysis uses official public metadata; it does not scrape/download competitor videos or copy their content.
-- The renderer currently creates a slideshow, not a full nonlinear editing timeline.
-- Generated scripts/SEO are drafts; fact-check claims, verify rights and human-review before publishing.
-- This starter has no user authentication. Do not expose it to the public internet until authentication, authorization, rate limits, quotas and secure storage are added.
-- Free tools do not imply unlimited cloud compute, voice generation, storage or stock API usage.
+## Production hardening still required
+This branch is an advanced backend foundation, not a claim of a fully production-ready hosted studio. Before public deployment, add authentication/authorization, a durable worker queue, rate limits, storage lifecycle controls, provider spend/usage tracking, full end-to-end tests with real FFmpeg and provider mocks, and deployment-specific secrets. Do not expose this development API publicly without those controls.
