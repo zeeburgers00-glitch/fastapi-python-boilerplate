@@ -55,6 +55,7 @@ class VideoEditRequest(BaseModel):
  height:int=Field(default=1080,ge=320,le=2160)
  fps:int=Field(default=30,ge=1,le=60)
  music_volume:float=Field(default=0.12,ge=0.0,le=1.0)
+ avatar_overlay_path:str|None=None
 
 class AvatarRequest(BaseModel):
  image_path:str
