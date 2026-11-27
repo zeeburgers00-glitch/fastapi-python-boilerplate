@@ -13,7 +13,7 @@ from .seo_agent import optimize_seo
 from .quality_agent import review_package
 from ..services.youtube import analyze
 from ..services.media import search_pexels, download_pexels_video
-from ..services.voice import synthesize_edge, synthesize_piper
+from ..services.voice import synthesize_edge, synthesize_piper, select_edge_voice
 from ..services.subtitles import create_srt
 from ..services.editor import render_video
 from ..services.avatar import render_talking_avatar
@@ -68,7 +68,9 @@ async def _auto_produce(project, opts, script):
 
     voice_path = None
     try:
-        voice_name = opts.get("voice_name", "en-US-AriaNeural")
+        voice_name = opts.get("voice_name", "auto")
+        if voice_engine != "piper":
+            voice_name = await asyncio.to_thread(select_edge_voice, opts.get("language", "English"), voice_name)
         voice_engine = opts.get("voice_engine", "edge")
         voice_filename = f"{project['id']}_voice.mp3" if voice_engine == "edge" else f"{project['id']}_voice.wav"
         if voice_engine == "piper":
