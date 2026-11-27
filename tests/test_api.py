@@ -36,6 +36,7 @@ def test_video_editor_request_defaults():
 
 def test_voice_request_supports_both_engines():
     assert VoiceRequest(text="Hello", engine="edge").voice == "en-US-AriaNeural"
+    assert VoiceRequest(text="Hello").filename == "voice.mp3"
     assert VoiceRequest(text="Hello", engine="piper").engine == "piper"
 
 
