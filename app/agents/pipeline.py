@@ -1,5 +1,6 @@
 import asyncio
 import json
+import inspect
 import re
 import shutil
 import subprocess
@@ -19,6 +20,14 @@ from ..services.editor import render_video
 from ..services.avatar import render_talking_avatar
 from ..services.thumbnail import create_thumbnail
 from ..config import get_settings
+
+
+async def _notify_progress(callback, stage: str, percent: int, message: str) -> None:
+    if callback is None:
+        return
+    result = callback(stage, percent, message)
+    if inspect.isawaitable(result):
+        await result
 
 
 def _clean_narration(script: str) -> str:
@@ -151,8 +160,9 @@ async def _auto_produce(project, opts, script):
     return assets
 
 
-async def run_production(project, opts):
+async def run_production(project, opts, progress_callback=None):
     competitor = None
+    await _notify_progress(progress_callback, "research", 5, "Checking topic and public competitor metadata")
     if project["mode"] == "competitor" and project.get("competitor_url"):
         competitor = await analyze(project["competitor_url"])
     topic = project["topic"]
@@ -163,6 +173,7 @@ async def run_production(project, opts):
     research = await research_brief(topic, language)
     if not research:
         research = f"Research plan for {topic}: verify primary sources, dates, statistics, opposing viewpoints and claims."
+    await _notify_progress(progress_callback, "research", 20, "Research brief prepared")
     context = ""
     if competitor and competitor.get("kind") == "channel":
         channel = competitor.get("channel", {})
@@ -176,15 +187,19 @@ async def run_production(project, opts):
     storyboard = await make_storyboard(script)
     if not storyboard:
         storyboard = "Create one scene per script section. Use licensed footage or original graphics; align visuals to narration."
+    await _notify_progress(progress_callback, "storyboard", 55, "Storyboard prepared")
     seo = await optimize_seo(topic, script, language)
     if not seo:
         seo = f"SEO draft: accurate title and description for {topic}; natural keywords, no keyword stuffing."
+    await _notify_progress(progress_callback, "seo", 68, "SEO package prepared")
     qa = await review_package(script, storyboard, seo)
     if not qa:
         qa = "Manual QA required: fact-check all claims, review pacing, verify media rights, captions and metadata."
 
     output_files = _save_seo_package(project["id"], topic, language, script, seo)
+    await _notify_progress(progress_callback, "production", 78, "Preparing voice, stock footage, captions and renders")
     assets = await _auto_produce(project, opts, script)
+    await _notify_progress(progress_callback, "quality_review", 95, "Media production finished; human review is still required")
     for key, path in list(output_files.items()):
         output_files[key + "_download"] = f"/api/v1/outputs/{Path(path).name}"
 
