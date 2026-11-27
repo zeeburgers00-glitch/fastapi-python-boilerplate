@@ -195,11 +195,12 @@ async def run_production(project, opts, progress_callback=None):
     qa = await review_package(script, storyboard, seo)
     if not qa:
         qa = "Manual QA required: fact-check all claims, review pacing, verify media rights, captions and metadata."
+    await _notify_progress(progress_callback, "quality_review", 76, "Quality review notes prepared")
 
     output_files = _save_seo_package(project["id"], topic, language, script, seo)
-    await _notify_progress(progress_callback, "production", 78, "Preparing voice, stock footage, captions and renders")
+    await _notify_progress(progress_callback, "production", 82, "Preparing voice, stock footage, captions and renders")
     assets = await _auto_produce(project, opts, script)
-    await _notify_progress(progress_callback, "quality_review", 95, "Media production finished; human review is still required")
+    await _notify_progress(progress_callback, "export", 95, "Media production finished; human review is still required")
     for key, path in list(output_files.items()):
         output_files[key + "_download"] = f"/api/v1/outputs/{Path(path).name}"
 
