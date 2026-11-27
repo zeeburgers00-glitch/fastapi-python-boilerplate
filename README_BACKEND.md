@@ -9,14 +9,14 @@ Local-first FastAPI backend for creating original YouTube Shorts and long-form v
 - Pexels stock-video search **and download** endpoints with source/photographer metadata.
 - FFmpeg multi-clip editor: 1080p/vertical output, crossfade transitions, subtle visual finishing, narration, background music mixing, and optional SRT caption burn-in.
 - Multilingual Edge neural TTS adapter and offline Piper adapter.
-- Optional SadTalker talking-avatar adapter for a user-provided portrait and generated narration.
+- Optional SadTalker talking-avatar adapter for a user-provided portrait and generated narration, including picture-in-picture overlay in the final video when configured.
 - Automatic Pillow thumbnail generation and downloadable MP4/SEO/thumbnail output files.
 - SQLite project/job tracking, Docker and GitHub Actions tests.
 
 ## Important quality and cost notes
 - Cloud LLM/TTS/stock services have changing quotas, terms and availability. No free API is guaranteed unlimited.
 - Edge TTS is an online voice adapter, not a contractual unlimited voice service. Piper is local/offline but quality and language coverage depend on the selected voice model.
-- SadTalker is an optional local adapter. Install its repository, dependencies and model checkpoints separately; model weights are not included. Talking-avatar generation is compute-heavy and will be slow or may not run well on an older CPU-only computer.
+- SadTalker is an optional local adapter. Install its repository, dependencies and model checkpoints separately; model weights are not included. When an avatar portrait is supplied and the adapter succeeds, the talking head is overlaid in the final render. Talking-avatar generation is compute-heavy and will be slow or may not run well on an older CPU-only computer.
 - Pexels clips must be checked against the current Pexels license and any applicable asset restrictions before publication. Downloaded stock media is stored locally.
 - The FFmpeg editor is a practical multi-clip assembly pipeline, not a full professional nonlinear editor with keyframed motion graphics or a Premiere-style timeline.
 - AI-generated facts, captions, voice, avatar and SEO must be reviewed by a human.
