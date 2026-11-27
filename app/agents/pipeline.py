@@ -17,6 +17,7 @@ from ..services.voice import synthesize_edge, synthesize_piper
 from ..services.subtitles import create_srt
 from ..services.editor import render_video
 from ..services.avatar import render_talking_avatar
+from ..services.thumbnail import create_thumbnail
 from ..config import get_settings
 
 
@@ -60,7 +61,7 @@ def _save_seo_package(project_id: str, topic: str, language: str, script: str, s
 async def _auto_produce(project, opts, script):
     settings = get_settings()
     assets = {"status": "not_started", "clips": [], "voiceover": None,
-              "captions": None, "renders": [], "avatar": None, "warnings": []}
+              "captions": None, "renders": [], "avatar": None, "thumbnail": None, "warnings": []}
     if not opts.get("generate_video", True):
         assets["status"] = "skipped_by_request"
         return assets
@@ -130,6 +131,15 @@ async def _auto_produce(project, opts, script):
             assets["avatar"] = avatar
         except Exception as exc:
             assets["warnings"].append(f"Talking avatar unavailable: {str(exc)[:300]}")
+
+    try:
+        thumbnail = await asyncio.to_thread(
+            create_thumbnail, project["topic"][:100], None, f"{project['id']}_thumbnail.jpg"
+        )
+        thumbnail["download_url"] = f"/api/v1/outputs/{Path(thumbnail['thumbnail_path']).name}"
+        assets["thumbnail"] = thumbnail
+    except Exception as exc:
+        assets["warnings"].append(f"Thumbnail generation skipped: {str(exc)[:200]}")
 
     assets["status"] = "video_ready" if assets["renders"] else (
         "partial" if assets["voiceover"] or assets["clips"] else "blocked"
