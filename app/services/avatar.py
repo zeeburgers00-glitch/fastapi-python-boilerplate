@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 from ..config import get_settings
-from .asset_paths import safe_upload_path
+from .asset_paths import safe_media_path
 
 
 def render_talking_avatar(image_path: str, audio_path: str, filename: str = "talking_avatar.mp4"):
@@ -17,8 +17,8 @@ def render_talking_avatar(image_path: str, audio_path: str, filename: str = "tal
     inference = repo_path / "inference.py"
     if not inference.is_file():
         raise RuntimeError("SadTalker inference.py was not found at SADTALKER_PATH.")
-    image = safe_upload_path(image_path)
-    audio = safe_upload_path(audio_path)
+    image = safe_media_path(image_path)
+    audio = safe_media_path(audio_path)
     if not filename.replace("_", "").replace("-", "").replace(".", "").isalnum():
         raise ValueError("Invalid output filename.")
     outdir = Path("outputs") / "avatar"
