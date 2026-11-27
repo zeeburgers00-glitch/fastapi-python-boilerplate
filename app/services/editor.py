@@ -15,11 +15,24 @@ def _output_path(filename: str) -> Path:
     return root / filename
 
 
+def _duration_seconds(path: Path) -> float | None:
+    ffprobe = shutil.which(get_settings().ffmpeg_binary.replace("ffmpeg", "ffprobe"))
+    if not ffprobe:
+        return None
+    result = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+                            capture_output=True, text=True, timeout=30)
+    try:
+        return max(1.0, float(result.stdout.strip())) if result.returncode == 0 else None
+    except ValueError:
+        return None
+
+
 def render_video(clips: list[str], narration: str | None = None,
                  music: str | None = None, subtitles: str | None = None,
                  output_name: str = "final_video.mp4", width: int = 1920,
                  height: int = 1080, fps: int = 30, music_volume: float = 0.12):
-    """Assemble licensed/source clips with narration, background music and optional SRT captions."""
+    """Assemble footage to narration length, mixing audio and burning optional SRT captions."""
     ffmpeg = shutil.which(get_settings().ffmpeg_binary)
     if not ffmpeg:
         raise RuntimeError("FFmpeg is required. Install it and ensure it is on PATH.")
@@ -31,10 +44,14 @@ def render_video(clips: list[str], narration: str | None = None,
     narration_path = safe_upload_path(narration) if narration else None
     music_path = safe_upload_path(music) if music else None
     subtitle_path = safe_upload_path(subtitles) if subtitles else None
+    duration = _duration_seconds(narration_path) if narration_path else None
     out = _output_path(output_name)
 
     cmd = [ffmpeg, "-y"]
+    segment = duration / len(inputs) if duration else None
     for path in inputs:
+        if segment:
+            cmd += ["-stream_loop", "-1", "-t", f"{segment:.3f}"]
         cmd += ["-i", str(path)]
     audio_index = len(inputs)
     if narration_path:
@@ -44,7 +61,7 @@ def render_video(clips: list[str], narration: str | None = None,
     else:
         narration_index = None
     if music_path:
-        cmd += ["-i", str(music_path)]
+        cmd += ["-stream_loop", "-1", "-i", str(music_path)]
         music_index = audio_index
     else:
         music_index = None
@@ -63,7 +80,8 @@ def render_video(clips: list[str], narration: str | None = None,
     if narration_index is not None and music_index is not None:
         filters.append(
             f"[{music_index}:a]volume={music_volume},aresample=async=1[bg];"
-            f"[{narration_index}:a]aresample=async=1[voice];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[outa]"
+            f"[{narration_index}:a]aresample=async=1[voice];"
+            f"[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[outa]"
         )
     elif narration_index is not None:
         filters.append(f"[{narration_index}:a]aresample=async=1[outa]")
@@ -71,7 +89,6 @@ def render_video(clips: list[str], narration: str | None = None,
         filters.append(f"[{music_index}:a]volume={music_volume},aresample=async=1[outa]")
 
     if subtitle_path:
-        # SRT paths are escaped for FFmpeg filter syntax.
         srt = str(subtitle_path).replace("\\", "/").replace(":", "\\:")
         filters.append(f"[outv]subtitles='{srt}':force_style='FontName=Arial,FontSize=22,Outline=2,Shadow=1,Alignment=2'[captioned]")
         video_map = "[captioned]"
@@ -88,4 +105,5 @@ def render_video(clips: list[str], narration: str | None = None,
     return {"output_path": str(out), "filename": out.name, "bytes": out.stat().st_size,
             "width": width, "height": height, "fps": fps, "format": "mp4",
             "clips_used": len(inputs), "subtitles_burned": bool(subtitle_path),
-            "narration_mixed": bool(narration_path), "music_mixed": bool(music_path)}
+            "narration_mixed": bool(narration_path), "music_mixed": bool(music_path),
+            "target_duration_seconds": duration}
