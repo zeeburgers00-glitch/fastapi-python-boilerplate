@@ -42,3 +42,11 @@ def test_voice_request_supports_both_engines():
 def test_provider_fallback_order():
     from app.services.ollama import provider_status
     assert provider_status()["fallback_order"] == ["groq", "gemini", "openrouter", "ollama"]
+
+
+def test_project_schema_exposes_automatic_production_options():
+    from app.schemas import ProjectCreate
+    project = ProjectCreate(topic="A useful explainer topic")
+    assert project.generate_video is True
+    assert project.voice_engine == "edge"
+    assert project.target_format == "long"
