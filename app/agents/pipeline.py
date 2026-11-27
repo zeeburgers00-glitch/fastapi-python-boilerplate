@@ -159,7 +159,7 @@ async def run_production(project, opts):
 
     output_files = _save_seo_package(project["id"], topic, language, script, seo)
     assets = await _auto_produce(project, opts, script)
-    for key, path in output_files.items():
+    for key, path in list(output_files.items()):
         output_files[key + "_download"] = f"/api/v1/outputs/{Path(path).name}"
 
     return {
