@@ -1,0 +1,91 @@
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+from ..config import get_settings
+from .asset_paths import safe_upload_path
+
+
+def _output_path(filename: str) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", filename):
+        raise ValueError("Invalid output filename.")
+    root = Path("outputs").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root / filename
+
+
+def render_video(clips: list[str], narration: str | None = None,
+                 music: str | None = None, subtitles: str | None = None,
+                 output_name: str = "final_video.mp4", width: int = 1920,
+                 height: int = 1080, fps: int = 30, music_volume: float = 0.12):
+    """Assemble licensed/source clips with narration, background music and optional SRT captions."""
+    ffmpeg = shutil.which(get_settings().ffmpeg_binary)
+    if not ffmpeg:
+        raise RuntimeError("FFmpeg is required. Install it and ensure it is on PATH.")
+    if not clips or len(clips) > 80:
+        raise ValueError("Provide between 1 and 80 video clips.")
+    if width % 2 or height % 2:
+        raise ValueError("Video width and height must be even numbers.")
+    inputs = [safe_upload_path(p) for p in clips]
+    narration_path = safe_upload_path(narration) if narration else None
+    music_path = safe_upload_path(music) if music else None
+    subtitle_path = safe_upload_path(subtitles) if subtitles else None
+    out = _output_path(output_name)
+
+    cmd = [ffmpeg, "-y"]
+    for path in inputs:
+        cmd += ["-i", str(path)]
+    audio_index = len(inputs)
+    if narration_path:
+        cmd += ["-i", str(narration_path)]
+        narration_index = audio_index
+        audio_index += 1
+    else:
+        narration_index = None
+    if music_path:
+        cmd += ["-i", str(music_path)]
+        music_index = audio_index
+    else:
+        music_index = None
+
+    filters = []
+    labels = []
+    for i in range(len(inputs)):
+        label = f"v{i}"
+        filters.append(
+            f"[{i}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+            f"crop={width}:{height},setsar=1,fps={fps},"
+            f"format=yuv420p,setpts=PTS-STARTPTS[{label}]"
+        )
+        labels.append(f"[{label}]")
+    filters.append("".join(labels) + f"concat=n={len(inputs)}:v=1:a=0[outv]")
+    if narration_index is not None and music_index is not None:
+        filters.append(
+            f"[{music_index}:a]volume={music_volume},aresample=async=1[bg];"
+            f"[{narration_index}:a]aresample=async=1[voice];[voice][bg]amix=inputs=2:duration=first:dropout_transition=2[outa]"
+        )
+    elif narration_index is not None:
+        filters.append(f"[{narration_index}:a]aresample=async=1[outa]")
+    elif music_index is not None:
+        filters.append(f"[{music_index}:a]volume={music_volume},aresample=async=1[outa]")
+
+    if subtitle_path:
+        # SRT paths are escaped for FFmpeg filter syntax.
+        srt = str(subtitle_path).replace("\\", "/").replace(":", "\\:")
+        filters.append(f"[outv]subtitles='{srt}':force_style='FontName=Arial,FontSize=22,Outline=2,Shadow=1,Alignment=2'[captioned]")
+        video_map = "[captioned]"
+    else:
+        video_map = "[outv]"
+    cmd += ["-filter_complex", ";".join(filters), "-map", video_map]
+    if narration_index is not None or music_index is not None:
+        cmd += ["-map", "[outa]", "-shortest"]
+    cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "19",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out)]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+    if result.returncode:
+        raise RuntimeError(result.stderr[-3000:])
+    return {"output_path": str(out), "filename": out.name, "bytes": out.stat().st_size,
+            "width": width, "height": height, "fps": fps, "format": "mp4",
+            "clips_used": len(inputs), "subtitles_burned": bool(subtitle_path),
+            "narration_mixed": bool(narration_path), "music_mixed": bool(music_path)}
