@@ -55,3 +55,28 @@ def list_edge_voices():
     except ImportError as exc:
         raise RuntimeError("Install edge-tts to list multilingual neural voices.") from exc
     return asyncio.run(edge_tts.list_voices())
+
+def select_edge_voice(language: str, preferred: str = "auto") -> str:
+    """Choose a neural voice matching the requested language when no voice is specified."""
+    if preferred and preferred.lower() != "auto":
+        return preferred
+    try:
+        voices = asyncio.run(__import__("edge_tts").list_voices())
+    except Exception:
+        return "en-US-AriaNeural"
+    aliases = {
+        "urdu": "ur", "hindi": "hi", "arabic": "ar", "spanish": "es",
+        "french": "fr", "german": "de", "chinese": "zh", "mandarin": "zh",
+        "japanese": "ja", "korean": "ko", "portuguese": "pt", "russian": "ru",
+        "italian": "it", "turkish": "tr", "bengali": "bn", "indonesian": "id",
+        "english": "en", "punjabi": "pa", "persian": "fa", "farsi": "fa",
+    }
+    key = language.strip().lower()
+    prefix = aliases.get(key, key[:2])
+    matching = [item for item in voices if item.get("Locale", "").lower().startswith(prefix)]
+    neural = [item for item in matching if "Neural" in item.get("ShortName", "")]
+    choices = neural or matching
+    if not choices:
+        return "en-US-AriaNeural"
+    female = [item for item in choices if item.get("Gender") == "Female"]
+    return (female or choices)[0].get("ShortName", "en-US-AriaNeural")
