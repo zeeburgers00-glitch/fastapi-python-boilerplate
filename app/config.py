@@ -12,6 +12,7 @@ class Settings(BaseSettings):
  pexels_api_key:str=""
  piper_binary:str="piper"
  piper_model_path:str=""
+ max_upload_mb:int=500
  model_config=SettingsConfigDict(env_file=".env",extra="ignore")
  @property
  def allowed_origins(self):return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
