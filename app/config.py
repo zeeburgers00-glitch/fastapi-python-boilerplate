@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_path: str = "./data/youtube_factory.db"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    api_key: str = ""  # Required for API routes when APP_ENV=production
     llm_provider: str = "auto"
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
