@@ -20,6 +20,18 @@ from ..services.avatar import render_talking_avatar
 from ..config import get_settings
 
 
+def _clean_narration(script: str) -> str:
+    lines = []
+    for line in script.splitlines():
+        if re.match(r"^\s*(HOOK|INTRO|OUTRO|VISUAL|SCENE\s*\d+|CHAPTER\s*\d+)\s*:", line, re.I):
+            line = line.split(":", 1)[-1].strip()
+        line = re.sub(r"\[(?:VERIFY|PAUSE|EMPHASIS|ON SCREEN TEXT)[^\]]*\]", "", line, flags=re.I)
+        line = re.sub(r"^\s*[-#>*]+\s*", "", line)
+        if line.strip():
+            lines.append(line.strip())
+    return "\n".join(lines)
+
+
 def _audio_duration(path: str) -> float:
     ffprobe_name = get_settings().ffmpeg_binary.replace("ffmpeg", "ffprobe")
     ffprobe = shutil.which(ffprobe_name)
@@ -59,9 +71,9 @@ async def _auto_produce(project, opts, script):
         voice_engine = opts.get("voice_engine", "edge")
         voice_filename = f"{project['id']}_voice.mp3" if voice_engine == "edge" else f"{project['id']}_voice.wav"
         if voice_engine == "piper":
-            voice = await asyncio.to_thread(synthesize_piper, script, voice_filename)
+            voice = await asyncio.to_thread(synthesize_piper, _clean_narration(script), voice_filename)
         else:
-            voice = await asyncio.to_thread(synthesize_edge, script, voice_filename, voice_name)
+            voice = await asyncio.to_thread(synthesize_edge, _clean_narration(script), voice_filename, voice_name)
         voice_path = voice["audio_path"]
         assets["voiceover"] = voice
     except Exception as exc:
@@ -87,7 +99,7 @@ async def _auto_produce(project, opts, script):
     if voice_path and assets["clips"]:
         try:
             duration = await asyncio.to_thread(_audio_duration, voice_path)
-            srt_path = create_srt(script, duration, f"{project['id']}_captions.srt")
+            srt_path = create_srt(_clean_narration(script), duration, f"{project['id']}_captions.srt")
             assets["captions"] = srt_path
             music_path = opts.get("background_music_path")
             if music_path:
