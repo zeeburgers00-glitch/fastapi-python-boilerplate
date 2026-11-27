@@ -58,7 +58,7 @@ async def process_project(pid,jid,opts):
         project=get_project(pid)
         result=await run_production(project,opts)
         save_result(pid,result)
-        update_job(jid,"completed","draft_ready")
+        update_job(jid,"completed",result.get("status","completed"))
     except Exception as exc:
         update_job(jid,"failed","error",str(exc)[:1000])
 
