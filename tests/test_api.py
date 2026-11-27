@@ -50,3 +50,12 @@ def test_project_schema_exposes_automatic_production_options():
     assert project.generate_video is True
     assert project.voice_engine == "edge"
     assert project.target_format == "long"
+
+def test_srt_caption_generation(tmp_path, monkeypatch):
+    from app.services.subtitles import create_srt
+    monkeypatch.chdir(tmp_path)
+    result = create_srt("First sentence. Second sentence.", 8.0, "captions.srt")
+    content = (tmp_path / result).read_text(encoding="utf-8")
+    assert "00:00:00,000 -->" in content
+    assert "First sentence." in content
+    assert "Second sentence." in content
