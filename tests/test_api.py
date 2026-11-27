@@ -1,23 +1,44 @@
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db import init_db
+from app.schemas import VideoEditRequest, VoiceRequest
+
+
 def test_health():
- init_db();r=TestClient(app).get("/health")
- assert r.status_code==200 and r.json()["status"]=="ok"
+    init_db()
+    response = TestClient(app).get("/health")
+    assert response.status_code == 200 and response.json()["status"] == "ok"
+
+
 def test_capabilities():
- init_db();r=TestClient(app).get("/api/v1/capabilities")
- assert r.status_code==200 and "competitor" in r.json()["modes"]
-def test_topic_project_accepted():
- init_db()
- r=TestClient(app).post("/api/v1/projects",json={"topic":"How solar power works","mode":"topic"})
- assert r.status_code==202
- assert r.json()["status"]=="queued"
-
-
-def test_capabilities_exposes_download_only_and_llm_fallback():
-    from app.services.ollama import provider_status
+    init_db()
     response = TestClient(app).get("/api/v1/capabilities")
     data = response.json()
+    assert response.status_code == 200
+    assert "competitor" in data["modes"]
     assert "download_only" in data["publishing"]
-    assert "llm" in data["providers"]
+    assert "ffmpeg-multiclip-editor" in data["modules"]
+    assert "sadtalker-avatar-adapter" in data["modules"]
+
+
+def test_topic_project_accepted():
+    init_db()
+    response = TestClient(app).post("/api/v1/projects", json={"topic": "How solar power works", "mode": "topic"})
+    assert response.status_code == 202
+    assert response.json()["status"] == "queued"
+
+
+def test_video_editor_request_defaults():
+    request = VideoEditRequest(clip_paths=["uploads/clip.mp4"])
+    assert request.width == 1920 and request.height == 1080
+    assert request.music_volume == 0.12
+
+
+def test_voice_request_supports_both_engines():
+    assert VoiceRequest(text="Hello", engine="edge").voice == "en-US-AriaNeural"
+    assert VoiceRequest(text="Hello", engine="piper").engine == "piper"
+
+
+def test_provider_fallback_order():
+    from app.services.ollama import provider_status
     assert provider_status()["fallback_order"] == ["groq", "gemini", "openrouter", "ollama"]
