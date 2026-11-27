@@ -7,9 +7,6 @@ class Settings(BaseSettings):
     app_env: str = "development"
     database_path: str = "./data/youtube_factory.db"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
-
-    # Provider keys are optional. The router uses every configured provider as a
-    # fallback chain; no provider is represented as unlimited or guaranteed free.
     llm_provider: str = "auto"
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
@@ -19,13 +16,15 @@ class Settings(BaseSettings):
     openrouter_model: str = "openrouter/auto:free"
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "qwen2.5:3b"
-
     youtube_data_api_key: str = ""
     ffmpeg_binary: str = "ffmpeg"
     pexels_api_key: str = ""
     piper_binary: str = "piper"
     piper_model_path: str = ""
+    sadtalker_path: str = ""
+    avatar_python: str = "python"
     max_upload_mb: int = 500
+    max_stock_download_mb: int = 250
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
