@@ -174,7 +174,7 @@ def render(body:RenderRequest):
 def edit_video(body:VideoEditRequest):
     try:
         return render_video(body.clip_paths,body.narration_path,body.music_path,body.subtitle_path,
-                            body.output_name,body.width,body.height,body.fps,body.music_volume)
+                            body.output_name,body.width,body.height,body.fps,body.music_volume,body.avatar_overlay_path)
     except (ValueError,RuntimeError) as exc:
         raise HTTPException(400,str(exc))
 
