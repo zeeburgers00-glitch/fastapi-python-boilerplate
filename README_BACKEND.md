@@ -3,7 +3,7 @@
 Local-first FastAPI backend for creating original YouTube Shorts and long-form videos, with downloadable video and SEO assets. It does not publish to YouTube.
 
 ## Current modules
-- Topic and competitor-channel research using official public YouTube metadata.
+- Topic and competitor-channel research using official public YouTube metadata.\n- Optional one-click production orchestration: topic/script → voiceover → Pexels clip download → timed SRT captions → MP4 render → SEO JSON/TXT downloads (when required providers and FFmpeg are configured).
 - Multi-provider LLM router: Groq, Gemini, OpenRouter and local Ollama.
 - Research, script, storyboard, SEO and quality-review agents.
 - Pexels stock-video search **and download** endpoints with source/photographer metadata.
@@ -44,7 +44,7 @@ Configure in `.env`:
 - FFmpeg must be available on PATH (or configure `FFMPEG_BINARY`).
 
 ## API workflow
-1. `POST /api/v1/projects` creates a research/script/SEO production package.
+1. `POST /api/v1/projects` creates a research/script/SEO package and attempts a video render by default when Pexels, TTS and FFmpeg are configured. Set `generate_video:false` to request a draft-only run.
 2. Poll `GET /api/v1/jobs/{job_id}`; inspect `GET /api/v1/projects/{project_id}`.
 3. `POST /api/v1/media/search` searches stock clips; `POST /api/v1/media/download` downloads a selected Pexels clip into `uploads/`.
 4. Upload narration/music/SRT or portrait/audio through `POST /api/v1/assets/upload`.
