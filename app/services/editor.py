@@ -48,7 +48,8 @@ def render_video(clips: list[str], narration: str | None = None,
     out = _output_path(output_name)
 
     cmd = [ffmpeg, "-y"]
-    segment = duration / len(inputs) if duration else None
+    transition = 0.45 if duration and len(inputs) > 1 else 0.0
+    segment = (duration + transition * (len(inputs) - 1)) / len(inputs) if duration else None
     for path in inputs:
         if segment:
             cmd += ["-stream_loop", "-1", "-t", f"{segment:.3f}"]
@@ -73,10 +74,25 @@ def render_video(clips: list[str], narration: str | None = None,
         filters.append(
             f"[{i}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
             f"crop={width}:{height},setsar=1,fps={fps},"
-            f"format=yuv420p,setpts=PTS-STARTPTS[{label}]"
+            f"eq=contrast=1.04:saturation=1.06,unsharp=5:5:0.35:3:3:0.0,"
+            f"format=yuv420p,settb=AVTB,setpts=PTS-STARTPTS[{label}]"
         )
         labels.append(f"[{label}]")
-    filters.append("".join(labels) + f"concat=n={len(inputs)}:v=1:a=0[outv]")
+    if duration and len(inputs) > 1:
+        previous = labels[0]
+        for index in range(1, len(inputs)):
+            output_label = f"x{index}"
+            offset = index * (segment - transition)
+            filters.append(
+                f"{previous}[v{index}]xfade=transition=fade:duration={transition}:"
+                f"offset={offset:.3f}[{output_label}]"
+            )
+            previous = f"[{output_label}]"
+        filters.append(f"{previous}null[outv]")
+    elif len(inputs) == 1:
+        filters.append(f"{labels[0]}null[outv]")
+    else:
+        filters.append("".join(labels) + f"concat=n={len(inputs)}:v=1:a=0[outv]")
     if narration_index is not None and music_index is not None:
         filters.append(
             f"[{music_index}:a]volume={music_volume},aresample=async=1[bg];"
