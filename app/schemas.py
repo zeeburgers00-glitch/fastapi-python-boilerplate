@@ -28,7 +28,7 @@ class RenderRequest(BaseModel):
 
 class VoiceRequest(BaseModel):
  text:str=Field(min_length=1,max_length=30000)
- filename:str=Field(default="voice.wav",pattern=r"^[a-zA-Z0-9_.-]+$")
+ filename:str=Field(default="voice.mp3",pattern=r"^[a-zA-Z0-9_.-]+$")
  engine:Literal["piper","edge"]="edge"
  voice:str=Field(default="en-US-AriaNeural",max_length=100)
 
