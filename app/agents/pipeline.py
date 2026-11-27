@@ -97,6 +97,18 @@ async def _auto_produce(project, opts, script):
     else:
         assets["warnings"].append("PEXELS_API_KEY is not configured; stock footage search/download skipped.")
 
+    avatar_image = opts.get("avatar_image_path")
+    avatar_path = None
+    if avatar_image and voice_path:
+        try:
+            avatar = await asyncio.to_thread(
+                render_talking_avatar, avatar_image, voice_path, f"{project['id']}_avatar.mp4"
+            )
+            avatar_path = avatar["output_path"]
+            avatar["download_url"] = f"/api/v1/outputs/{avatar['filename']}"
+            assets["avatar"] = avatar
+        except Exception as exc:
+            assets["warnings"].append(f"Talking avatar unavailable: {str(exc)[:300]}")
     if voice_path and assets["clips"]:
         try:
             duration = await asyncio.to_thread(_audio_duration, voice_path)
@@ -114,23 +126,13 @@ async def _auto_produce(project, opts, script):
                     render_video,
                     [c["asset_path"] for c in assets["clips"]],
                     voice_path, music_path, srt_path,
-                    f"{project['id']}_{format_name}.mp4", width, height, 30, 0.12
+                    f"{project['id']}_{format_name}.mp4", width, height, 30, 0.12, avatar_path
                 )
                 rendered["download_url"] = f"/api/v1/outputs/{rendered['filename']}"
                 assets["renders"].append(rendered)
         except Exception as exc:
             assets["warnings"].append(f"Video assembly did not finish: {str(exc)[:500]}")
 
-    avatar_image = opts.get("avatar_image_path")
-    if avatar_image and voice_path:
-        try:
-            avatar = await asyncio.to_thread(
-                render_talking_avatar, avatar_image, voice_path, f"{project['id']}_avatar.mp4"
-            )
-            avatar["download_url"] = f"/api/v1/outputs/{avatar['filename']}"
-            assets["avatar"] = avatar
-        except Exception as exc:
-            assets["warnings"].append(f"Talking avatar unavailable: {str(exc)[:300]}")
 
     try:
         thumbnail = await asyncio.to_thread(
