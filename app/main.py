@@ -11,6 +11,7 @@ from .services.render import render_slideshow
 from .services.voice import synthesize_piper
 from .services.media import search_pexels
 from .services.thumbnail import create_thumbnail
+from .services.ollama import provider_status
 s=get_settings()
 app=FastAPI(title=s.app_name,version="0.2.0",description="Local-first YouTube production backend.")
 app.add_middleware(CORSMiddleware,allow_origins=s.allowed_origins,allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
@@ -23,7 +24,7 @@ def root():return {"message":"YouTube AI Factory API","docs":"/docs","health":"/
 def health():return {"status":"ok","app":s.app_name,"environment":s.app_env}
 @app.get("/api/v1/capabilities")
 def capabilities():
- return {"modes":["topic","competitor"],"agents":["research","script","storyboard","seo","quality-review"],"modules":["official-youtube-metadata","ollama-generation","piper-local-tts","pexels-stock-search","pillow-thumbnail","ffmpeg-render"],"providers":{"ollama":s.ollama_base_url,"youtube_data_api":bool(s.youtube_data_api_key),"pexels":bool(s.pexels_api_key),"piper_model":bool(s.piper_model_path)},"notes":["AI drafts require fact-checking and human review.","Competitor analysis reads public metadata only; it does not copy videos.","Render and thumbnail inputs must be uploaded through this API first."]}
+ return {"modes":["topic","competitor"],"formats":["short","long","both"],"publishing":["download_only"],"agents":["research","script","storyboard","seo","quality-review"],"modules":["official-youtube-metadata","ollama-generation","piper-local-tts","pexels-stock-search","pillow-thumbnail","ffmpeg-render"],"providers":{"llm":provider_status(),"youtube_data_api":bool(s.youtube_data_api_key),"pexels":bool(s.pexels_api_key),"piper_model":bool(s.piper_model_path)},"notes":["AI drafts require fact-checking and human review.","Competitor analysis reads public metadata only; it does not copy videos.","Render and thumbnail inputs must be uploaded through this API first."]}
 async def process_project(pid,jid,opts):
  try:
   update_job(jid,"running","research_and_script")
