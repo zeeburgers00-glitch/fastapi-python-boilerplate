@@ -13,7 +13,7 @@ class ProjectCreate(BaseModel):
  tone:str=Field(default="engaging, clear, factual",max_length=160)
  generate_video:bool=True
  voice_engine:Literal["edge","piper"]="edge"
- voice_name:str=Field(default="en-US-AriaNeural",max_length=100)
+ voice_name:str=Field(default="auto",max_length=100)
  stock_query:str|None=Field(default=None,max_length=120)
  background_music_path:str|None=None
  avatar_image_path:str|None=None
