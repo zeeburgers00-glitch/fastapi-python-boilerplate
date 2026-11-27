@@ -68,10 +68,10 @@ async def _auto_produce(project, opts, script):
 
     voice_path = None
     try:
+        voice_engine = opts.get("voice_engine", "edge")
         voice_name = opts.get("voice_name", "auto")
         if voice_engine != "piper":
             voice_name = await asyncio.to_thread(select_edge_voice, opts.get("language", "English"), voice_name)
-        voice_engine = opts.get("voice_engine", "edge")
         voice_filename = f"{project['id']}_voice.mp3" if voice_engine == "edge" else f"{project['id']}_voice.wav"
         if voice_engine == "piper":
             voice = await asyncio.to_thread(synthesize_piper, _clean_narration(script), voice_filename)
