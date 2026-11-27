@@ -6,7 +6,7 @@ Local-first FastAPI backend for an original YouTube production workflow.
 - FastAPI project/job API with SQLite persistence.
 - Topic-to-production-package and competitor-link modes.
 - Specialist agents: research planner, script writer, storyboard director, SEO editor, quality reviewer.
-- Local Ollama model adapter (optional).
+- Multi-provider LLM router: Groq, Gemini, OpenRouter and local Ollama, with automatic fallback across configured providers.
 - Official YouTube Data API competitor metadata lookup, including channel handles and a sample of recent uploads ranked by public views (optional).
 - Piper local text-to-speech adapter (optional).
 - Pexels stock-video search adapter (optional API key; respect each asset's license and terms).
@@ -55,7 +55,7 @@ docker compose exec ollama ollama pull qwen2.5:3b
 6. Render supplied images/audio using `POST /api/v1/render/slideshow`.
 7. Retrieve generated files via `GET /api/v1/outputs/{filename}`.
 
-## Important limitations and safety
+## Product scope\nThe intended user flow is video generation plus SEO metadata and downloadable output files. There is no YouTube channel publishing, OAuth upload, or scheduling integration. The existing `/api/v1/assets/upload` route is only for supplying source media to the renderer; it does not publish to YouTube.\n\n## Important limitations and safety
 - FastAPI in-process background tasks are for local development only. Replace with Celery + Redis and durable retries before multi-user production.
 - Competitor analysis uses official public metadata; it does not scrape/download competitor videos or copy their content.
 - The renderer currently creates a slideshow, not a full nonlinear editing timeline.
